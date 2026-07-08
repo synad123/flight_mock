@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>여행 설렘 시뮬레이션 - 모의 항공권 예매</title>
+<title> 여행 설렘 시뮬레이션 - 모의 항공권 예매</title>
 <style>
   :root{
     --brand:#ff5b39; --brand-d:#e8461f; --ink:#1b1b1f; --sub:#6b7280;
@@ -90,6 +90,29 @@
   .btn:disabled{background:#d9d9e0;cursor:not-allowed}
   .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
   .link{background:none;border:none;color:var(--sub);font-size:12.5px;text-decoration:underline;cursor:pointer;padding:6px}
+  /* history */
+  header .hbar{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .histbtn{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;
+           font-size:11.5px;font-weight:700;padding:8px 10px;border-radius:10px;cursor:pointer;
+           white-space:nowrap;font-family:inherit}
+  .histbtn:active{transform:scale(.96)}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.42);display:none;z-index:60;
+         align-items:flex-end;justify-content:center}
+  .modal.on{display:flex}
+  .sheet{background:var(--bg);width:100%;max-width:460px;max-height:86vh;overflow-y:auto;
+         border-radius:20px 20px 0 0;padding:18px 18px 28px;animation:up .25s ease}
+  @keyframes up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+  .sheet-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;
+           position:sticky;top:-18px;background:var(--bg);padding-top:4px}
+  .sheet-h strong{font-size:17px}
+  .xbtn{background:none;border:none;font-size:18px;cursor:pointer;color:var(--sub);line-height:1}
+  .hist-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+             padding:14px;margin-bottom:10px}
+  .hc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .hc-pnr{font-weight:800;letter-spacing:1px;font-size:15px}
+  .hc-del{background:none;border:none;color:#e8461f;font-size:11.5px;cursor:pointer;
+          text-decoration:underline;padding:2px}
+  .hist-empty{text-align:center;padding:44px 10px;color:var(--sub);font-size:13.5px;line-height:1.7}
   /* toast */
   .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#1b1b1f;color:#fff;
          padding:11px 16px;border-radius:12px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:50;max-width:90%;text-align:center}
@@ -104,8 +127,13 @@
 <body>
 <div class="app">
   <header>
-    <div class="logo">✈️ 여행 설렘 시뮬레이션 </div>
-    <div class="tag">표는 팔지만 정시 출발은 약속 못 해요 (모의니까요)</div>
+    <div class="hbar">
+      <div>
+        <div class="logo">✈️ 여행 설렘 시뮬레이션 </div>
+        <div class="tag">표는 팔지만 정시 출발은 약속 못 해요 (모의니까요)</div>
+      </div>
+      <button class="histbtn" onclick="openHistory()">📋 내 예매내역</button>
+    </div>
   </header>
 
   <div class="steps">
@@ -151,7 +179,7 @@
     <div class="field" id="f-passport">
       <label>여권번호</label>
       <input id="passport" placeholder="M12345678" autocomplete="off" style="text-transform:uppercase">
-      <div class="err"> M00000000 형식으로 작성해주세요.</div>
+      <div class="err">여권번호를 영문·숫자 6자 이상 적어주세요.</div>
     </div>
     <div class="field" id="f-phone">
       <label>연락처</label>
@@ -209,6 +237,17 @@
   </div>
 </div>
 
+<!-- 예매내역 모달 -->
+<div class="modal" id="histModal">
+  <div class="sheet">
+    <div class="sheet-h">
+      <strong>📋 내 예매내역</strong>
+      <button class="xbtn" onclick="closeHistory()">✕</button>
+    </div>
+    <div id="histBody"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -220,19 +259,17 @@ const flights = [
   {air:"결항항공 BX742",  dep:"18:50", arr:"22:20", dur:"3h30m", stop:"경유 1회", price:158000, badge:"최저가"},
 ];
 const TAX = 84200; // 유류할증료+세금
-let state = {step:1, flight:null, seat:null, pay:"카드", tripDate:""};
+let state = {step:1, flight:null, seat:null, pay:"카드"};
 
-// ---------- 여행 날짜: 접속일 기준 +14일 자동 설정 ----------
+// ---------- 여행 날짜: 접속일 + 14일 ----------
 function setTripDate(){
   const d = new Date();
   d.setDate(d.getDate() + 14);            // 오늘 + 14일 (월·연도 자동 처리)
   const days = ["일","월","화","수","목","금","토"];
-  const label = `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
-  state.tripDate = label;
+  state.tripDate = `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
   const el = document.getElementById("tripDate");
-  if(el) el.textContent = label;
+  if(el) el.textContent = state.tripDate;
 }
-setTripDate();
 
 // ---------- 렌더 ----------
 const won = n => n.toLocaleString("ko-KR")+"원";
@@ -360,6 +397,19 @@ function complete(){
     <div class="sline"><span class="k">좌석</span><span class="v">${state.seat}</span></div>
     <div class="sline"><span class="k">결제수단</span><span class="v">${state.pay}</span></div>
     <div class="sline total"><span>결제금액</span><span class="v">${won(f.price+seatFee()+TAX)}</span></div>`;
+  // 예매내역 저장
+  const last = document.getElementById("lastName").value.toUpperCase();
+  const first = document.getElementById("firstName").value.toUpperCase();
+  saveBooking({
+    pnr,
+    name: `${last} ${first}`,
+    route: "ICN→NRT",
+    air: f.air, dep: f.dep, arr: f.arr,
+    seat: state.seat, pay: state.pay,
+    amount: won(f.price + seatFee() + TAX),
+    tripDate: state.tripDate || "-",
+    bookedAt: new Date().toLocaleString("ko-KR",{dateStyle:"medium",timeStyle:"short"})
+  });
   [1,2,3,4].forEach(i=>{const s=document.getElementById("st"+i);s.classList.remove("active");s.classList.add("done");});
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
   document.getElementById("scrDone").classList.add("on");
@@ -370,14 +420,50 @@ function restart(){ state={step:1,flight:null,seat:null,pay:"카드"};
   document.querySelectorAll("input").forEach(i=>i.value=""); document.getElementById("gender").value="";
   document.querySelectorAll(".field").forEach(f=>f.classList.remove("bad"));
   document.getElementById("foot").style.display="block";
-  document.getElementById("mainBtn").textContent="다음"; renderFlights(); showStep(1);
+  document.getElementById("mainBtn").textContent="다음"; renderFlights(); showStep(1); setTripDate();
 }
 let toastT;
 function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("on");
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("on"),1800); }
 
+// ---------- 예매내역 (localStorage) ----------
+const LS_KEY = "flt_bookings";
+function loadBookings(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)) || []; }catch(e){ return []; } }
+function saveBookings(list){ localStorage.setItem(LS_KEY, JSON.stringify(list)); }
+function saveBooking(b){ const list = loadBookings(); list.unshift(b); saveBookings(list); }
+function openHistory(){ renderHistory(); document.getElementById("histModal").classList.add("on"); }
+function closeHistory(){ document.getElementById("histModal").classList.remove("on"); }
+function deleteBooking(pnr){
+  saveBookings(loadBookings().filter(b=>b.pnr!==pnr));
+  renderHistory(); toast("예매내역을 삭제했어요");
+}
+function renderHistory(){
+  const list = loadBookings(), body = document.getElementById("histBody");
+  if(!list.length){
+    body.innerHTML = `<div class="hist-empty">아직 아무 데도 안 떠나셨네요 ✈️<br>예매를 완료하면 여기에 차곡차곡 쌓여요.</div>`;
+    return;
+  }
+  body.innerHTML = list.map(b=>`
+    <div class="hist-card">
+      <div class="hc-top">
+        <span class="hc-pnr">🎫 ${b.pnr}</span>
+        <button class="hc-del" onclick="deleteBooking('${b.pnr}')">삭제</button>
+      </div>
+      <div class="sline"><span class="k">탑승객</span><span class="v">${b.name}</span></div>
+      <div class="sline"><span class="k">여정</span><span class="v">${b.route} ${b.dep}→${b.arr}</span></div>
+      <div class="sline"><span class="k">여행일</span><span class="v">${b.tripDate}</span></div>
+      <div class="sline"><span class="k">좌석 · 결제</span><span class="v">${b.seat} · ${b.pay}</span></div>
+      <div class="sline total"><span>결제금액</span><span class="v">${b.amount}</span></div>
+      <div class="hint" style="margin:6px 0 0;font-size:11px">예매일시 ${b.bookedAt}</div>
+    </div>`).join("");
+}
+// 모달 바깥 클릭 시 닫기
+document.getElementById("histModal").addEventListener("click", e=>{
+  if(e.target.id === "histModal") closeHistory();
+});
+
 // init
-renderFlights(); document.getElementById("mainBtn").textContent="탑승객 정보 입력"; updateBtn();
+renderFlights(); setTripDate(); document.getElementById("mainBtn").textContent="탑승객 정보 입력"; updateBtn();
 </script>
 </body>
 </html>
